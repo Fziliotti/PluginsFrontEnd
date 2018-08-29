@@ -7,6 +7,7 @@ var uglify = require('gulp-uglify');
 var pkg = require('./package.json');
 var browserSync = require('browser-sync').create();
 const imagemin = require('gulp-imagemin');
+var concat = require('gulp-concat');
 
 // Copy third party libraries from /node_modules into /vendor
 gulp.task('vendor', function() {
@@ -152,11 +153,26 @@ gulp.task('js:minify', function() {
   .pipe(browserSync.stream());
 });
 
+gulp.task('concatCSS', function() {
+  return gulp.src(
+    [
+    'vendor/device-mockups/device-mockups.min.css',
+    'vendor/aos/aos.css',
+    'vendor/sweetalert2/sweetalert2.min.css',
+    'vendor/animate/animate.min.css',
+    'vendor/modaal/dist/css/modaal.min.css',
+    'vendor/slick-carousel/slick.css',
+    'vendor/slick-carousel/slick-theme.css'
+   ])
+    .pipe(concat('vendorConcatenado.css'))
+    .pipe(gulp.dest('./css'));
+});
+
 // JS
 gulp.task('js', ['js:minify']);
 
 // Default task
-gulp.task('default', ['css','imagemin', 'vendor']);
+gulp.task('default', ['css','concatCSS','imagemin', 'vendor']);
 
 // Configure the browserSync task
 gulp.task('browserSync', function() {
