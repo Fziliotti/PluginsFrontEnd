@@ -135,7 +135,7 @@ gulp.task('imagemin', function(){
         optimizationLevel: 5,
         svgoPlugins: [{removeViewBox: true}]
     }))
-    .pipe(gulp.dest('dist/images'))
+    .pipe(gulp.dest('img/'))
 });
 
 // Minify JavaScript
