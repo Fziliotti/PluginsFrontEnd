@@ -1,6 +1,7 @@
-import defaultParams, {showWarningsForParams} from '../utils/params'
+import defaultParams, { showWarningsForParams } from '../utils/params'
 import * as dom from '../utils/dom/index'
 import { swalClasses } from '../utils/classes'
+import Timer from '../utils/Timer'
 import { formatInputOptions, error, callIfFunction, isThenable } from '../utils/utils'
 import setParameters from '../utils/setParameters'
 import globalState from '../globalState'
@@ -16,7 +17,13 @@ export function _main (userParams) {
   privateProps.innerParams.set(this, innerParams)
 
   // clear the previous timer
-  clearTimeout(globalState.timeout)
+  if (globalState.timeout) {
+    globalState.timeout.stop()
+    delete globalState.timeout
+  }
+
+  // clear the restore focus timeout
+  clearTimeout(globalState.restoreFocusTimeout)
 
   const domCache = {
     popup: dom.getPopup(),
@@ -40,7 +47,7 @@ export function _main (userParams) {
       if (innerParams.useRejections) {
         resolve(value)
       } else {
-        resolve({value})
+        resolve({ value })
       }
     }
     const dismissWith = (dismiss) => {
@@ -48,7 +55,7 @@ export function _main (userParams) {
       if (innerParams.useRejections) {
         reject(dismiss)
       } else {
-        resolve({dismiss})
+        resolve({ dismiss })
       }
     }
     const errorWith = (error) => {
@@ -58,7 +65,10 @@ export function _main (userParams) {
 
     // Close on timer
     if (innerParams.timer) {
-      globalState.timeout = setTimeout(() => dismissWith('timer'), innerParams.timer)
+      globalState.timeout = new Timer(() => {
+        dismissWith('timer')
+        delete globalState.timeout
+      }, innerParams.timer)
     }
 
     // Get the value of the popup input
@@ -125,10 +135,9 @@ export function _main (userParams) {
     }
 
     // Mouse interactions
-    const onButtonEvent = (event) => {
-      const e = event || window.event
-      const target = e.target || e.srcElement
-      const {confirmButton, cancelButton} = domCache
+    const onButtonEvent = (e) => {
+      const target = e.target
+      const { confirmButton, cancelButton } = domCache
       const targetedConfirm = confirmButton && (confirmButton === target || confirmButton.contains(target))
       const targetedCancel = cancelButton && (cancelButton === target || cancelButton.contains(target))
 
@@ -204,7 +213,7 @@ export function _main (userParams) {
 
     if (innerParams.toast) {
       // Closing popup by internal click
-      domCache.popup.onclick = (e) => {
+      domCache.popup.onclick = () => {
         if (
           innerParams.showConfirmButton ||
           innerParams.showCancelButton ||
@@ -213,7 +222,6 @@ export function _main (userParams) {
         ) {
           return
         }
-        constructor.closePopup(innerParams.onClose, innerParams.onAfterClose)
         dismissWith(constructor.DismissReason.close)
       }
     } else {
@@ -280,18 +288,16 @@ export function _main (userParams) {
           index = focusableElements.length - 1
         }
 
-        // determine if element is visible
-        const el = focusableElements[index]
-        if (dom.isVisible(el)) {
-          return el.focus()
-        }
+        return focusableElements[index].focus()
       }
       // no visible focusable elements, focus the popup
       domCache.popup.focus()
     }
 
     const keydownHandler = (e, innerParams) => {
-      e.stopPropagation()
+      if (innerParams.stopKeydownPropagation) {
+        e.stopPropagation()
+      }
 
       const arrowKeys = [
         'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
@@ -310,10 +316,10 @@ export function _main (userParams) {
 
         // TAB
       } else if (e.key === 'Tab') {
-        const targetElement = e.target || e.srcElement
+        const targetElement = e.target
 
         const focusableElements = dom.getFocusableElements(innerParams.focusCancel)
-        let btnIndex = -1 // Find the button - note, this is a nodelist, not an array.
+        let btnIndex = -1
         for (let i = 0; i < focusableElements.length; i++) {
           if (targetElement === focusableElements[i]) {
             btnIndex = i
@@ -348,13 +354,15 @@ export function _main (userParams) {
     }
 
     if (globalState.keydownHandlerAdded) {
-      window.removeEventListener('keydown', globalState.keydownHandler, {capture: true})
+      globalState.keydownTarget.removeEventListener('keydown', globalState.keydownHandler, { capture: globalState.keydownListenerCapture })
       globalState.keydownHandlerAdded = false
     }
 
     if (!innerParams.toast) {
       globalState.keydownHandler = (e) => keydownHandler(e, innerParams)
-      window.addEventListener('keydown', globalState.keydownHandler, {capture: true})
+      globalState.keydownTarget = innerParams.keydownListenerCapture ? window : domCache.popup
+      globalState.keydownListenerCapture = innerParams.keydownListenerCapture
+      globalState.keydownTarget.addEventListener('keydown', globalState.keydownHandler, { capture: globalState.keydownListenerCapture })
       globalState.keydownHandlerAdded = true
     }
 
@@ -362,8 +370,10 @@ export function _main (userParams) {
     this.hideLoading()
     this.resetValidationError()
 
-    if (innerParams.input) {
-      dom.addClass(document.body, swalClasses['has-input'])
+    if (innerParams.toast && (innerParams.input || innerParams.footer || innerParams.showCloseButton)) {
+      dom.addClass(document.body, swalClasses['toast-column'])
+    } else {
+      dom.removeClass(document.body, swalClasses['toast-column'])
     }
 
     // inputs
@@ -405,20 +415,22 @@ export function _main (userParams) {
       case 'password':
       case 'number':
       case 'tel':
-      case 'url':
+      case 'url': {
         input = dom.getChildByClass(domCache.content, swalClasses.input)
         input.value = innerParams.inputValue
         input.placeholder = innerParams.inputPlaceholder
         input.type = innerParams.input
         dom.show(input)
         break
-      case 'file':
+      }
+      case 'file': {
         input = dom.getChildByClass(domCache.content, swalClasses.file)
         input.placeholder = innerParams.inputPlaceholder
         input.type = innerParams.input
         dom.show(input)
         break
-      case 'range':
+      }
+      case 'range': {
         const range = dom.getChildByClass(domCache.content, swalClasses.range)
         const rangeInput = range.querySelector('input')
         const rangeOutput = range.querySelector('output')
@@ -427,7 +439,8 @@ export function _main (userParams) {
         rangeOutput.value = innerParams.inputValue
         dom.show(range)
         break
-      case 'select':
+      }
+      case 'select': {
         const select = dom.getChildByClass(domCache.content, swalClasses.select)
         select.innerHTML = ''
         if (innerParams.inputPlaceholder) {
@@ -439,7 +452,9 @@ export function _main (userParams) {
           select.appendChild(placeholder)
         }
         populateInputOptions = (inputOptions) => {
-          inputOptions.forEach(([optionValue, optionLabel]) => {
+          inputOptions.forEach(inputOption => {
+            const optionValue = inputOption[0]
+            const optionLabel = inputOption[1]
             const option = document.createElement('option')
             option.value = optionValue
             option.innerHTML = optionLabel
@@ -452,11 +467,14 @@ export function _main (userParams) {
           select.focus()
         }
         break
-      case 'radio':
+      }
+      case 'radio': {
         const radio = dom.getChildByClass(domCache.content, swalClasses.radio)
         radio.innerHTML = ''
         populateInputOptions = (inputOptions) => {
-          inputOptions.forEach(([radioValue, radioLabel]) => {
+          inputOptions.forEach(inputOption => {
+            const radioValue = inputOption[0]
+            const radioLabel = inputOption[1]
             const radioInput = document.createElement('input')
             const radioLabelElement = document.createElement('label')
             radioInput.type = 'radio'
@@ -465,8 +483,11 @@ export function _main (userParams) {
             if (innerParams.inputValue.toString() === radioValue.toString()) {
               radioInput.checked = true
             }
-            radioLabelElement.innerHTML = radioLabel
-            radioLabelElement.insertBefore(radioInput, radioLabelElement.firstChild)
+            const label = document.createElement('span')
+            label.innerHTML = radioLabel
+            label.className = swalClasses.label
+            radioLabelElement.appendChild(radioInput)
+            radioLabelElement.appendChild(label)
             radio.appendChild(radioLabelElement)
           })
           dom.show(radio)
@@ -476,30 +497,29 @@ export function _main (userParams) {
           }
         }
         break
-      case 'checkbox':
+      }
+      case 'checkbox': {
         const checkbox = dom.getChildByClass(domCache.content, swalClasses.checkbox)
         const checkboxInput = this.getInput('checkbox')
         checkboxInput.type = 'checkbox'
         checkboxInput.value = 1
         checkboxInput.id = swalClasses.checkbox
         checkboxInput.checked = Boolean(innerParams.inputValue)
-        let label = checkbox.getElementsByTagName('span')
-        if (label.length) {
-          checkbox.removeChild(label[0])
-        }
-        label = document.createElement('span')
+        let label = checkbox.querySelector('span')
         label.innerHTML = innerParams.inputPlaceholder
-        checkbox.appendChild(label)
         dom.show(checkbox)
         break
-      case 'textarea':
+      }
+      case 'textarea': {
         const textarea = dom.getChildByClass(domCache.content, swalClasses.textarea)
         textarea.value = innerParams.inputValue
         textarea.placeholder = innerParams.inputPlaceholder
         dom.show(textarea)
         break
-      case null:
+      }
+      case null: {
         break
+      }
       default:
         error(`Unexpected type of input! Expected "text", "email", "password", "number", "tel", "select", "radio", "checkbox", "textarea", "file" or "url", got "${innerParams.input}"`)
         break
@@ -524,12 +544,14 @@ export function _main (userParams) {
       innerParams.inputValue.then((inputValue) => {
         input.value = innerParams.input === 'number' ? parseFloat(inputValue) || 0 : inputValue + ''
         dom.show(input)
+        input.focus()
         this.hideLoading()
       })
         .catch((err) => {
           error('Error in inputValue promise: ' + err)
           input.value = ''
           dom.show(input)
+          input.focus()
           this.hideLoading()
         })
     }

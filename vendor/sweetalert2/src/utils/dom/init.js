@@ -43,6 +43,7 @@ const sweetHTML = `
      <div class="${swalClasses.radio}"></div>
      <label for="${swalClasses.checkbox}" class="${swalClasses.checkbox}">
        <input type="checkbox" />
+       <span class="${swalClasses.label}"></span>
      </label>
      <textarea class="${swalClasses.textarea}"></textarea>
      <div class="${swalClasses.validationerror}" id="${swalClasses.validationerror}"></div>
@@ -68,8 +69,8 @@ export const init = (params) => {
       [document.documentElement, document.body],
       [
         swalClasses['no-backdrop'],
-        swalClasses['has-input'],
-        swalClasses['toast-shown']
+        swalClasses['toast-shown'],
+        swalClasses['has-column']
       ]
     )
   }
@@ -117,13 +118,13 @@ export const init = (params) => {
   checkbox.onchange = resetValidationError
   textarea.oninput = resetValidationError
 
-  range.oninput = () => {
-    resetValidationError()
+  range.oninput = (e) => {
+    resetValidationError(e)
     rangeOutput.value = range.value
   }
 
-  range.onchange = () => {
-    resetValidationError()
+  range.onchange = (e) => {
+    resetValidationError(e)
     range.nextSibling.value = range.value
   }
 

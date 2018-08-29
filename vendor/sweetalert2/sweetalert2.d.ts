@@ -43,12 +43,20 @@ declare module 'sweetalert2' {
      */
     namespace swal {
         /**
+         * Reuse configuration by creating a swal instance.
+         *
+         * @param options the default options to set for this instance.
+         */
+        function mixin(options?: SweetAlertOptions): typeof swal;
+
+        /**
          * Determines if a modal is shown.
          * Be aware that the library returns a trueish or falsy value, not a real boolean.
          */
         function isVisible(): boolean;
 
         /**
+         * @deprecated
          * If you end up using a lot of the same settings when calling SweetAlert2,
          * you can use setDefaults at the start of your program to set them once and for all!
          *
@@ -57,6 +65,7 @@ declare module 'sweetalert2' {
         function setDefaults(defaultOptions: SweetAlertOptions): void;
 
         /**
+         * @deprecated
          * Resets settings to their default value.
          */
         function resetDefaults(): void;
@@ -84,6 +93,17 @@ declare module 'sweetalert2' {
         function getImage(): HTMLElement;
 
         /**
+         * Gets the close button.
+         */
+        function getCloseButton(): HTMLElement;
+
+        /**
+         * Gets all icons. The current visible icon will have `style="display: flex"`,
+         * all other will be hidden by `style="display: none"`.
+         */
+        function getIcons(): Array<HTMLElement>;
+
+        /**
          * Gets the "Confirm" button.
          */
         function getConfirmButton(): HTMLElement;
@@ -107,6 +127,11 @@ declare module 'sweetalert2' {
          * Gets the modal footer.
          */
         function getFooter(): HTMLElement;
+
+        /**
+         * Gets all focusable elements in the popup.
+         */
+        function getFocusableElements(): Array<HTMLElement>;
 
         /**
          * Enables "Confirm" and "Cancel" buttons.
@@ -179,6 +204,12 @@ declare module 'sweetalert2' {
          * Enables the modal input.
          */
         function enableInput(): void;
+
+        /**
+         * If `timer` parameter is set, returns number os milliseconds of timer remained.
+         * Otherwise, returns null.
+         */
+        function getTimerLeft(): number | null;
 
         /**
          * Provide an array of SweetAlert2 parameters to show multiple modals, one modal after another.
@@ -417,6 +448,14 @@ declare module 'sweetalert2' {
         animation?: ValueOrThunk<boolean>;
 
         /**
+         * By default, SweetAlert2 sets html's and body's CSS height to auto !important.
+         * If this behavior isn't compatible with your project's layout, set heightAuto to false.
+         *
+         * @default true
+         */
+        heightAuto?: boolean;
+
+        /**
          * If set to false, the user can't dismiss the modal by clicking outside it.
          * You can also pass a custom function returning a boolean value, e.g. if you want
          * to disable outside clicks for the loading state of a modal.
@@ -442,6 +481,23 @@ declare module 'sweetalert2' {
          * @default true
          */
         allowEnterKey?: ValueOrThunk<boolean>;
+
+        /**
+         * If set to false, SweetAlert2 will allow keydown events propagation to the document.
+         *
+         * @default true
+         */
+        stopKeydownPropagation?: boolean;
+
+        /**
+         * Useful for those who are using SweetAlert2 along with Bootstrap modals.
+         * By default keydownListenerCapture is false which means when a user hits Esc,
+         * both SweetAlert2 and Bootstrap modals will be closed.
+         * Set keydownListenerCapture to true to fix that behavior.
+         *
+         * @default false
+         */
+        keydownListenerCapture?: boolean;
 
         /**
          * If set to false, a "Confirm"-button will not be shown.
@@ -574,7 +630,10 @@ declare module 'sweetalert2' {
          *      '<input id="swal-input1" class="swal2-input">' +
          *      '<input id="swal-input2" class="swal2-input">',
          *    focusConfirm: false,
-         *    preConfirm: () => [$('#swal-input1').val(), $('#swal-input2').val()]
+         *    preConfirm: () => [
+         *      document.querySelector('#swal-input1').value,
+         *      document.querySelector('#swal-input2').value
+         *    ]
          *  }).then(result => swal(JSON.stringify(result));
          *
          * @default null

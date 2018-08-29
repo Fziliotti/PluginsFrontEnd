@@ -1,5 +1,6 @@
-import {undoScrollbar} from '../utils/scrollbarFix'
-import {undoIOSfix} from '../utils/iosFix'
+import { undoScrollbar } from '../utils/scrollbarFix'
+import { undoIOSfix } from '../utils/iosFix'
+import { unsetAriaHidden } from '../utils/aria'
 import * as dom from '../utils/dom/index'
 import { swalClasses } from '../utils/classes.js'
 import globalState, { restoreActiveElement } from '../globalState'
@@ -24,7 +25,7 @@ const close = (onClose, onAfterClose) => {
   const removePopupAndResetState = () => {
     if (!dom.isToast()) {
       restoreActiveElement()
-      window.removeEventListener('keydown', globalState.keydownHandler, {capture: true})
+      globalState.keydownTarget.removeEventListener('keydown', globalState.keydownHandler, { capture: globalState.keydownListenerCapture })
       globalState.keydownHandlerAdded = false
     }
 
@@ -37,14 +38,15 @@ const close = (onClose, onAfterClose) => {
         swalClasses.shown,
         swalClasses['height-auto'],
         swalClasses['no-backdrop'],
-        swalClasses['has-input'],
-        swalClasses['toast-shown']
+        swalClasses['toast-shown'],
+        swalClasses['toast-column']
       ]
     )
 
     if (dom.isModal()) {
       undoScrollbar()
       undoIOSfix()
+      unsetAriaHidden()
     }
 
     if (onAfterClose !== null && typeof onAfterClose === 'function') {

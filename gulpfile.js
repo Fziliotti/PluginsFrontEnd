@@ -6,7 +6,7 @@ var rename = require("gulp-rename");
 var uglify = require('gulp-uglify');
 var pkg = require('./package.json');
 var browserSync = require('browser-sync').create();
-
+const imagemin = require('gulp-imagemin');
 
 // Copy third party libraries from /node_modules into /vendor
 gulp.task('vendor', function() {
@@ -127,6 +127,17 @@ gulp.task('css:minify', ['css:compile'], function() {
 // CSS
 gulp.task('css', ['css:compile', 'css:minify']);
 
+// IMAGEMIN
+gulp.task('imagemin', function(){
+    gulp.src(['img/*.jpg', 'img/*.svg' ,'img/Galeria-Imagem/*.jpg'])
+    .pipe(imagemin({
+        progressive: true,
+        optimizationLevel: 5,
+        svgoPlugins: [{removeViewBox: true}]
+    }))
+    .pipe(gulp.dest('dist/images'))
+});
+
 // Minify JavaScript
 gulp.task('js:minify', function() {
   return gulp.src([
@@ -145,7 +156,7 @@ gulp.task('js:minify', function() {
 gulp.task('js', ['js:minify']);
 
 // Default task
-gulp.task('default', ['css', 'js', 'vendor']);
+gulp.task('default', ['css','imagemin', 'vendor']);
 
 // Configure the browserSync task
 gulp.task('browserSync', function() {

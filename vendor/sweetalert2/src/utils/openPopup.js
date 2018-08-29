@@ -2,6 +2,7 @@ import * as dom from './dom/index'
 import { swalClasses } from './classes'
 import { fixScrollbar } from './scrollbarFix'
 import { iOSfix } from './iosFix'
+import { setAriaHidden } from './aria'
 import globalState from '../globalState'
 
 /**
@@ -45,8 +46,9 @@ export const openPopup = (params) => {
   if (dom.isModal()) {
     fixScrollbar()
     iOSfix()
+    setAriaHidden()
   }
-  if (!globalState.previousActiveElement) {
+  if (!dom.isToast() && !globalState.previousActiveElement) {
     globalState.previousActiveElement = document.activeElement
   }
   if (params.onOpen !== null && typeof params.onOpen === 'function') {
